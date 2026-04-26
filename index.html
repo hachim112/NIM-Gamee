@@ -1,140 +1,757 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Mission: Zero - Fixed Edition</title>
-    <style>
-        body { background: #1a1a1a; color: white; font-family: 'Segoe UI', sans-serif; display: flex; flex-direction: column; align-items: center; margin: 0; }
-        .viewport { position: relative; width: 800px; height: 600px; margin-top: 20px; background: #2c3e50; border-radius: 15px; overflow: hidden; }
-        .layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; pointer-events: none; }
-        #svg-menu, #svg-gameover { pointer-events: all; z-index: 200; }
-        #ui-controls { position: absolute; bottom: 30px; width: 100%; display: none; justify-content: center; gap: 15px; z-index: 100; }
-        button { padding: 12px 25px; font-size: 18px; cursor: pointer; border-radius: 8px; border: none; background: #3498db; color: white; font-weight: bold; }
-        button:disabled { background: #7f8c8d; opacity: 0.5; }
-    </style>
+<meta charset="UTF-8">
+<title>Mission: Zero</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Exo+2:wght@300;400;600&display=swap');
+
+  :root {
+    --bg: #070b14;
+    --panel: #0d1526;
+    --border: #1e3a5f;
+    --accent: #00d4ff;
+    --accent2: #ff6b35;
+    --green: #00ff9d;
+    --red: #ff3b5c;
+    --ball-player: #00d4ff;
+    --ball-danger: #ff3b5c;
+    --text: #c8dff0;
+    --dim: #4a6a8a;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Exo 2', sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    padding: 20px;
+    overflow-x: hidden;
+  }
+
+  /* Starfield background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      radial-gradient(1px 1px at 10% 15%, rgba(255,255,255,0.6) 0%, transparent 100%),
+      radial-gradient(1px 1px at 80% 25%, rgba(255,255,255,0.4) 0%, transparent 100%),
+      radial-gradient(1.5px 1.5px at 35% 60%, rgba(255,255,255,0.5) 0%, transparent 100%),
+      radial-gradient(1px 1px at 60% 85%, rgba(255,255,255,0.3) 0%, transparent 100%),
+      radial-gradient(1px 1px at 90% 70%, rgba(255,255,255,0.5) 0%, transparent 100%),
+      radial-gradient(1px 1px at 20% 90%, rgba(255,255,255,0.3) 0%, transparent 100%),
+      radial-gradient(1.5px 1.5px at 50% 40%, rgba(0,212,255,0.3) 0%, transparent 100%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Scanline effect */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.08) 2px,
+      rgba(0,0,0,0.08) 4px
+    );
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .game-wrapper {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    max-width: 820px;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+    padding: 0 4px;
+  }
+  .logo {
+    font-family: 'Orbitron', monospace;
+    font-size: 22px;
+    font-weight: 900;
+    letter-spacing: 4px;
+    color: var(--accent);
+    text-shadow: 0 0 20px rgba(0,212,255,0.5);
+  }
+  .logo span { color: var(--accent2); }
+  .tagline {
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: var(--dim);
+    text-transform: uppercase;
+  }
+
+  /* ── VIEWPORT ── */
+  .viewport {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 800/600;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 0 60px rgba(0,212,255,0.08), inset 0 0 40px rgba(0,0,0,0.5);
+  }
+
+  /* ── CORNER DECORATIONS ── */
+  .corner {
+    position: absolute;
+    width: 24px; height: 24px;
+    border-color: var(--accent);
+    border-style: solid;
+    z-index: 10;
+    opacity: 0.5;
+  }
+  .corner-tl { top: 8px; left: 8px; border-width: 2px 0 0 2px; }
+  .corner-tr { top: 8px; right: 8px; border-width: 2px 2px 0 0; }
+  .corner-bl { bottom: 8px; left: 8px; border-width: 0 0 2px 2px; }
+  .corner-br { bottom: 8px; right: 8px; border-width: 0 2px 2px 0; }
+
+  /* ── HUD ── */
+  .hud {
+    position: absolute;
+    top: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    z-index: 20;
+    width: 340px;
+  }
+  .hud-bar-track {
+    width: 100%;
+    height: 8px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 4px;
+    border: 1px solid rgba(0,212,255,0.15);
+    overflow: hidden;
+  }
+  .hud-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--green));
+    border-radius: 4px;
+    transition: width 0.4s cubic-bezier(.4,0,.2,1);
+    box-shadow: 0 0 10px rgba(0,212,255,0.5);
+  }
+  .hud-bar-fill.danger {
+    background: linear-gradient(90deg, var(--accent2), var(--red));
+    box-shadow: 0 0 10px rgba(255,59,92,0.5);
+  }
+  .hud-status {
+    font-family: 'Orbitron', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: var(--accent);
+    text-shadow: 0 0 12px rgba(0,212,255,0.5);
+    text-transform: uppercase;
+  }
+  .hud-count {
+    font-family: 'Orbitron', monospace;
+    font-size: 10px;
+    color: var(--dim);
+    letter-spacing: 1px;
+  }
+
+  /* ── ROBOT ── */
+  .robot-container {
+    position: absolute;
+    top: 12px;
+    right: 16px;
+    z-index: 20;
+  }
+  .robot-container svg {
+    filter: drop-shadow(0 0 12px rgba(142,68,173,0.6));
+    animation: bob 3s ease-in-out infinite;
+  }
+  @keyframes bob {
+    0%,100% { transform: translateY(0); }
+    50% { transform: translateY(8px); }
+  }
+  .robot-container.thinking svg {
+    animation: shake 0.15s infinite, bob 3s ease-in-out infinite;
+    filter: drop-shadow(0 0 16px rgba(231,76,60,0.8));
+  }
+  @keyframes shake {
+    0%,100% { transform: translateX(0) translateY(var(--bob,0)); }
+    50% { transform: translateX(3px) translateY(var(--bob,0)); }
+  }
+
+  /* ── BOARD AREA ── */
+  .board-area {
+    position: absolute;
+    top: 110px;
+    left: 0; right: 0;
+    bottom: 100px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    z-index: 15;
+    padding: 10px 30px;
+  }
+  .balls-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 14px;
+    width: 100%;
+    max-width: 480px;
+  }
+  .ball {
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, rgba(255,255,255,0.5), var(--ball-player) 60%, #004a77);
+    box-shadow: 0 4px 14px rgba(0,212,255,0.4), inset 0 -3px 6px rgba(0,0,0,0.3);
+    transition: transform 0.25s, opacity 0.35s, box-shadow 0.25s;
+    cursor: default;
+    position: relative;
+  }
+  .ball::after {
+    content: '';
+    position: absolute;
+    top: 18%; left: 25%;
+    width: 30%; height: 20%;
+    background: rgba(255,255,255,0.35);
+    border-radius: 50%;
+    transform: rotate(-30deg);
+  }
+  .ball.danger {
+    background: radial-gradient(circle at 35% 35%, rgba(255,255,255,0.5), var(--ball-danger) 60%, #700020);
+    box-shadow: 0 4px 14px rgba(255,59,92,0.4), inset 0 -3px 6px rgba(0,0,0,0.3);
+    animation: pulse-danger 0.8s ease-in-out infinite alternate;
+  }
+  @keyframes pulse-danger {
+    from { box-shadow: 0 4px 14px rgba(255,59,92,0.4); }
+    to   { box-shadow: 0 4px 22px rgba(255,59,92,0.8), 0 0 30px rgba(255,59,92,0.3); }
+  }
+  .ball.removed {
+    opacity: 0;
+    transform: scale(0.3);
+    pointer-events: none;
+  }
+  .ball.just-removed {
+    animation: pop-out 0.35s forwards;
+  }
+  @keyframes pop-out {
+    0%   { transform: scale(1); opacity: 1; }
+    40%  { transform: scale(1.3); opacity: 0.7; }
+    100% { transform: scale(0); opacity: 0; }
+  }
+
+  /* ── BOTTOM CONTROLS ── */
+  .controls {
+    position: absolute;
+    bottom: 0;
+    left: 0; right: 0;
+    height: 90px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    z-index: 20;
+    background: linear-gradient(0deg, rgba(7,11,20,0.9) 0%, transparent 100%);
+    padding: 0 30px 14px;
+  }
+  .take-btn {
+    font-family: 'Orbitron', monospace;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    padding: 12px 28px;
+    border: 1px solid var(--accent);
+    background: rgba(0,212,255,0.08);
+    color: var(--accent);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+    position: relative;
+    overflow: hidden;
+  }
+  .take-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--accent);
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .take-btn:hover:not(:disabled)::before { opacity: 0.12; }
+  .take-btn:active:not(:disabled) { transform: scale(0.96); }
+  .take-btn:disabled {
+    border-color: var(--dim);
+    color: var(--dim);
+    cursor: not-allowed;
+    opacity: 0.4;
+  }
+  .take-btn span { position: relative; z-index: 1; }
+
+  /* ── OVERLAYS ── */
+  .overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+  }
+  .overlay-bg {
+    position: absolute;
+    inset: 0;
+    background: rgba(7,11,20,0.92);
+    backdrop-filter: blur(4px);
+  }
+  .overlay-content {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    text-align: center;
+    padding: 40px;
+  }
+
+  /* Menu */
+  .menu-title {
+    font-family: 'Orbitron', monospace;
+    font-size: 38px;
+    font-weight: 900;
+    color: var(--accent);
+    letter-spacing: 6px;
+    text-shadow: 0 0 30px rgba(0,212,255,0.5);
+    margin-bottom: 6px;
+  }
+  .menu-sub {
+    font-size: 12px;
+    letter-spacing: 3px;
+    color: var(--dim);
+    text-transform: uppercase;
+    margin-bottom: 30px;
+  }
+  .menu-rule {
+    font-size: 13px;
+    color: var(--text);
+    letter-spacing: 1px;
+    background: rgba(0,212,255,0.06);
+    border: 1px solid rgba(0,212,255,0.15);
+    border-radius: 8px;
+    padding: 12px 20px;
+    max-width: 400px;
+    margin-bottom: 28px;
+    line-height: 1.7;
+  }
+  .menu-rule strong { color: var(--red); }
+  .menu-q {
+    font-family: 'Orbitron', monospace;
+    font-size: 13px;
+    letter-spacing: 2px;
+    color: var(--dim);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+  }
+  .menu-btns { display: flex; gap: 16px; }
+  .menu-btn {
+    font-family: 'Orbitron', monospace;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    padding: 14px 36px;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+    text-transform: uppercase;
+  }
+  .menu-btn:hover { transform: translateY(-2px); }
+  .menu-btn:active { transform: translateY(0); }
+  .menu-btn.me {
+    background: linear-gradient(135deg, var(--green), #00a86b);
+    color: #001a0e;
+    box-shadow: 0 6px 20px rgba(0,255,157,0.3);
+  }
+  .menu-btn.pc {
+    background: linear-gradient(135deg, var(--accent2), #c0392b);
+    color: #fff;
+    box-shadow: 0 6px 20px rgba(255,107,53,0.3);
+  }
+
+  /* Game Over */
+  .go-title {
+    font-family: 'Orbitron', monospace;
+    font-size: 52px;
+    font-weight: 900;
+    letter-spacing: 4px;
+    text-shadow: 0 0 40px currentColor;
+    animation: glitch 2s infinite;
+  }
+  @keyframes glitch {
+    0%,92%,100% { clip-path: none; transform: none; }
+    93% { clip-path: inset(30% 0 40% 0); transform: translateX(-4px); }
+    94% { clip-path: inset(60% 0 10% 0); transform: translateX(4px); }
+    95% { clip-path: none; transform: none; }
+  }
+  .go-result {
+    font-size: 16px;
+    letter-spacing: 2px;
+    color: var(--text);
+    margin-bottom: 10px;
+  }
+  .go-score {
+    font-family: 'Orbitron', monospace;
+    font-size: 12px;
+    color: var(--dim);
+    letter-spacing: 1px;
+  }
+  .restart-btn {
+    font-family: 'Orbitron', monospace;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    padding: 14px 40px;
+    border-radius: 10px;
+    border: 1px solid var(--accent);
+    background: rgba(0,212,255,0.1);
+    color: var(--accent);
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+    margin-top: 18px;
+    animation: blink-border 1.5s ease-in-out infinite;
+  }
+  .restart-btn:hover {
+    background: rgba(0,212,255,0.2);
+    box-shadow: 0 0 20px rgba(0,212,255,0.3);
+  }
+  @keyframes blink-border {
+    0%,100% { border-color: var(--accent); box-shadow: 0 0 8px rgba(0,212,255,0.2); }
+    50% { border-color: rgba(0,212,255,0.3); box-shadow: none; }
+  }
+
+  /* ── CPU MOVE FLASH ── */
+  .cpu-took-indicator {
+    position: absolute;
+    top: 60px; left: 50%; transform: translateX(-50%);
+    font-family: 'Orbitron', monospace;
+    font-size: 12px;
+    letter-spacing: 2px;
+    color: var(--accent2);
+    z-index: 30;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+  }
+  .cpu-took-indicator.show { opacity: 1; }
+
+  /* Hidden util */
+  .hidden { display: none !important; }
+</style>
 </head>
 <body>
+<div class="game-wrapper">
 
-    <div class="viewport">
-        <object id="svg-bg" class="layer" data="background.svg" type="image/svg+xml"></object>
-        <object id="svg-board" class="layer" data="board.svg" type="image/svg+xml"></object>
-        <object id="svg-char" class="layer" data="character.svg" type="image/svg+xml"></object>
-        <object id="svg-hud" class="layer" data="ui_feedback.svg" type="image/svg+xml"></object>
-        <object id="svg-menu" class="layer" data="menu.svg" type="image/svg+xml"></object>
-        <object id="svg-gameover" class="layer" data="game_over.svg" type="image/svg+xml" style="display: none;"></object>
+  <!-- Header -->
+  <div class="header">
+    <div class="logo">MISSION<span>:</span>ZERO</div>
+    <div class="tagline">Last ball loses · Take 1, 2 or 3</div>
+  </div>
+
+  <!-- Main Viewport -->
+  <div class="viewport" id="viewport">
+
+    <!-- Corner decorations -->
+    <div class="corner corner-tl"></div>
+    <div class="corner corner-tr"></div>
+    <div class="corner corner-bl"></div>
+    <div class="corner corner-br"></div>
+
+    <!-- HUD -->
+    <div class="hud" id="hud">
+      <div class="hud-status" id="status-txt">STANDBY</div>
+      <div class="hud-bar-track">
+        <div class="hud-bar-fill" id="bar-fill"></div>
+      </div>
+      <div class="hud-count" id="ball-count">15 / 15 OBJECTS REMAINING</div>
     </div>
 
-    <div id="ui-controls">
-        <button id="btn-1" onclick="playMove(1)">Take 1</button>
-        <button id="btn-2" onclick="playMove(2)">Take 2</button>
-        <button id="btn-3" onclick="playMove(3)">Take 3</button>
+    <!-- Robot -->
+    <div class="robot-container" id="robot-wrap">
+      <svg width="70" height="70" viewBox="0 0 80 80">
+        <rect x="10" y="10" width="60" height="60" rx="12" fill="#8e44ad" stroke="#c39bd3" stroke-width="2"/>
+        <rect x="10" y="10" width="60" height="60" rx="12" fill="url(#rg)" opacity="0.5"/>
+        <defs>
+          <linearGradient id="rg" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#fff" stop-opacity="0.2"/>
+            <stop offset="100%" stop-color="#000" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <circle cx="28" cy="33" r="7" fill="#00d4ff" opacity="0.9"/>
+        <circle cx="52" cy="33" r="7" fill="#00d4ff" opacity="0.9"/>
+        <circle cx="28" cy="33" r="3" fill="#001a2e"/>
+        <circle cx="52" cy="33" r="3" fill="#001a2e"/>
+        <rect x="26" y="52" width="28" height="6" rx="3" fill="#c39bd3" opacity="0.6"/>
+        <rect x="30" y="54" width="6" height="2" rx="1" fill="#fff" opacity="0.8"/>
+        <rect x="38" y="54" width="12" height="2" rx="1" fill="#fff" opacity="0.4"/>
+      </svg>
     </div>
 
-    <script>
-        // BALLS CONST NUMBER
-        const TOTAL_BALLS = 15; 
-        let count = TOTAL_BALLS;
-        let isPlayerTurn = false;
+    <!-- CPU took indicator -->
+    <div class="cpu-took-indicator" id="cpu-indicator">CPU TOOK</div>
 
-        function initGame(choice) {
-            document.getElementById('svg-menu').style.display = 'none';
-            document.getElementById('ui-controls').style.display = 'flex';
-            
-            if (choice === 'pc') {
-                startCpuTurn();
-            } else {
-                startPlayerTurn();
-            }
-        }
+    <!-- Board -->
+    <div class="board-area">
+      <div class="balls-grid" id="balls-grid"></div>
+    </div>
 
-        function playMove(n) {
-            if (!isPlayerTurn || n > count) return;
-            executeMove(n);
-            if (count > 0) {
-                startCpuTurn();
-            } else {
-                endGame(true); // Player took the last ball -> YOU LOSE
-            }
-        }
+    <!-- Controls -->
+    <div class="controls hidden" id="controls">
+      <button class="take-btn" id="btn1" onclick="playMove(1)"><span>TAKE 1</span></button>
+      <button class="take-btn" id="btn2" onclick="playMove(2)"><span>TAKE 2</span></button>
+      <button class="take-btn" id="btn3" onclick="playMove(3)"><span>TAKE 3</span></button>
+    </div>
 
-        function startCpuTurn() {
-            isPlayerTurn = false;
-            toggleBtns(false);
-            updateStatus("CPU thinking...");
-            
-            setTimeout(() => {
-                let target = (count - 1) % 4;
-                let take = (target === 0) ? 1 : target; 
-                executeMove(Math.min(take, count));
-                
-                if (count > 0) {
-                    startPlayerTurn();
-                } else {
-                    endGame(false); // CPU took the last ball -> YOU WIN
-                }
-            }, 1200);
-        }
+    <!-- MENU OVERLAY -->
+    <div class="overlay" id="menu-overlay">
+      <div class="overlay-bg"></div>
+      <div class="overlay-content">
+        <div class="menu-title">MISSION<br>ZERO</div>
+        <div class="menu-sub">Strategic elimination · 15 objects</div>
+        <div class="menu-rule">
+          On each turn, remove <strong>1, 2, or 3</strong> objects.<br>
+          The player who takes the <strong>last object loses</strong>.
+        </div>
+        <div class="menu-q">WHO GOES FIRST?</div>
+        <div class="menu-btns">
+          <button class="menu-btn me" onclick="initGame('me')">ME</button>
+          <button class="menu-btn pc" onclick="initGame('pc')">CPU</button>
+        </div>
+      </div>
+    </div>
 
-        function startPlayerTurn() {
-            isPlayerTurn = true;
-            toggleBtns(true);
-            updateStatus("Your Turn!");
-            if (count < 3) document.getElementById('btn-3').disabled = true;
-            if (count < 2) document.getElementById('btn-2').disabled = true;
-        }
+    <!-- GAME OVER OVERLAY -->
+    <div class="overlay hidden" id="gameover-overlay">
+      <div class="overlay-bg"></div>
+      <div class="overlay-content">
+        <div class="go-title" id="go-title">YOU WIN!</div>
+        <div class="go-result" id="go-result">The CPU took the last object.</div>
+        <div class="go-score" id="go-score"></div>
+        <button class="restart-btn" onclick="restartGame()">▶ PLAY AGAIN</button>
+      </div>
+    </div>
 
-        function executeMove(n) {
-            const boardDoc = document.getElementById('svg-board').contentDocument;
-            for (let i = 0; i < n; i++) {
-                const ball = boardDoc.getElementById('ball-' + count);
-                if (ball) ball.style.display = 'none';
-                count--;
-            }
-            updateHud();
-        }
+  </div><!-- /viewport -->
 
-        function updateStatus(msg) {
-            try {
-                const hudDoc = document.getElementById('svg-hud').contentDocument;
-                hudDoc.getElementById('status-txt').textContent = msg;
-            } catch(e) {}
-        }
+</div><!-- /wrapper -->
 
-        function updateHud() {
-            try {
-                const hudDoc = document.getElementById('svg-hud').contentDocument;
-                const bar = hudDoc.getElementById('bar-grow');
-                if (bar) bar.setAttribute('width', (count / TOTAL_BALLS) * 100 + '%');
-            } catch(e) {}
-        }
+<script>
+  const TOTAL = 15;
+  let count = TOTAL;
+  let isPlayerTurn = false;
+  let gameActive = false;
 
-        function toggleBtns(on) {
-            document.querySelectorAll('button').forEach(b => b.disabled = !on);
-        }
+  // ── BUILD BALLS ──
+  function buildBalls() {
+    const grid = document.getElementById('balls-grid');
+    grid.innerHTML = '';
+    for (let i = 1; i <= TOTAL; i++) {
+      const div = document.createElement('div');
+      div.className = 'ball';
+      div.id = 'ball-' + i;
+      grid.appendChild(div);
+    }
+    updateHud();
+  }
 
-        function endGame(playerLost) {
-            document.getElementById('ui-controls').style.display = 'none';
-            const goLayer = document.getElementById('svg-gameover');
-            const goDoc = goLayer.contentDocument;
-            
-            // Fix Game Over SVG elements
-            const title = goDoc.getElementById('game-over-title');
-            const result = goDoc.getElementById('game-over-result');
+  // ── INIT ──
+  buildBalls();
 
-            if (playerLost) {
-                title.textContent = "YOU LOSE!";
-                title.setAttribute("fill", "#e74c3c");
-                result.textContent = "You took the last ball.";
-            } else {
-                title.textContent = "YOU WIN!";
-                title.setAttribute("fill", "#2ecc71");
-                result.textContent = "The CPU took the last ball.";
-            }
-            
-            goLayer.style.display = 'block';
-            // Click anywhere on Game Over to reload
-            goLayer.onclick = () => location.reload();
-        }
-    </script>
+  function initGame(who) {
+    document.getElementById('menu-overlay').classList.add('hidden');
+    document.getElementById('controls').classList.remove('hidden');
+    gameActive = true;
+
+    if (who === 'pc') {
+      cpuTurn();
+    } else {
+      playerTurn();
+    }
+  }
+
+  // ── PLAYER ──
+  function playerTurn() {
+    isPlayerTurn = true;
+    setStatus('YOUR TURN');
+    setButtonsEnabled(true);
+    refreshButtonStates();
+  }
+
+  function playMove(n) {
+    if (!isPlayerTurn || !gameActive) return;
+    if (n > count) return;
+
+    removeBalls(n, false);
+
+    if (count <= 0) {
+      endGame(true); // player took last → player loses
+    } else {
+      cpuTurn();
+    }
+  }
+
+  // ── CPU ──
+  function cpuTurn() {
+    isPlayerTurn = false;
+    setStatus('CPU THINKING…');
+    setButtonsEnabled(false);
+    document.getElementById('robot-wrap').classList.add('thinking');
+
+    setTimeout(() => {
+      document.getElementById('robot-wrap').classList.remove('thinking');
+
+      // Optimal strategy: leave opponent at a multiple of 4
+      // If (count-1) % 4 === 0, CPU must take 1 (forced losing position)
+      let take = (count - 1) % 4;
+      if (take === 0) take = 1; // forced: no winning move
+      take = Math.min(take, count);
+
+      showCpuTook(take);
+      removeBalls(take, true);
+
+      if (count <= 0) {
+        setTimeout(() => endGame(false), 400); // cpu took last → player wins
+      } else {
+        setTimeout(() => playerTurn(), 500);
+      }
+    }, 1200);
+  }
+
+  // ── REMOVE BALLS ──
+  function removeBalls(n, isCpu) {
+    // Remove from highest-numbered ball down (most recently added)
+    for (let i = 0; i < n; i++) {
+      const ball = document.getElementById('ball-' + count);
+      if (ball) {
+        ball.classList.add('just-removed');
+        setTimeout(() => ball.classList.add('removed'), 350);
+      }
+      count--;
+    }
+    setTimeout(() => {
+      updateHud();
+      refreshButtonStates();
+      updateDanger();
+    }, 360);
+  }
+
+  // ── HUD ──
+  function updateHud() {
+    const pct = (count / TOTAL) * 100;
+    const bar = document.getElementById('bar-fill');
+    bar.style.width = pct + '%';
+    bar.classList.toggle('danger', count <= 4);
+    document.getElementById('ball-count').textContent =
+      count + ' / ' + TOTAL + ' OBJECTS REMAINING';
+  }
+
+  function setStatus(msg) {
+    document.getElementById('status-txt').textContent = msg;
+  }
+
+  // ── DANGER HIGHLIGHT (last 3 balls) ──
+  function updateDanger() {
+    for (let i = 1; i <= TOTAL; i++) {
+      const b = document.getElementById('ball-' + i);
+      if (!b) continue;
+      if (b.classList.contains('removed')) continue;
+      b.classList.toggle('danger', count <= 3);
+    }
+  }
+
+  // ── BUTTON STATES ──
+  function setButtonsEnabled(on) {
+    ['btn1','btn2','btn3'].forEach(id => {
+      document.getElementById(id).disabled = !on;
+    });
+  }
+
+  function refreshButtonStates() {
+    document.getElementById('btn1').disabled = !isPlayerTurn || count < 1;
+    document.getElementById('btn2').disabled = !isPlayerTurn || count < 2;
+    document.getElementById('btn3').disabled = !isPlayerTurn || count < 3;
+  }
+
+  // ── CPU TOOK INDICATOR ──
+  function showCpuTook(n) {
+    const el = document.getElementById('cpu-indicator');
+    el.textContent = 'CPU TOOK ' + n;
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 1800);
+  }
+
+  // ── GAME OVER ──
+  function endGame(playerLost) {
+    gameActive = false;
+    isPlayerTurn = false;
+    setButtonsEnabled(false);
+    document.getElementById('controls').classList.add('hidden');
+
+    const title = document.getElementById('go-title');
+    const result = document.getElementById('go-result');
+    const score  = document.getElementById('go-score');
+
+    if (playerLost) {
+      title.textContent = 'YOU LOSE';
+      title.style.color = 'var(--red)';
+      result.textContent = 'You took the last object. Mission failed.';
+    } else {
+      title.textContent = 'YOU WIN';
+      title.style.color = 'var(--green)';
+      result.textContent = 'CPU took the last object. Mission complete!';
+    }
+
+    score.textContent = '';
+
+    setTimeout(() => {
+      document.getElementById('gameover-overlay').classList.remove('hidden');
+    }, 600);
+  }
+
+  // ── RESTART ──
+  function restartGame() {
+    count = TOTAL;
+    isPlayerTurn = false;
+    gameActive = false;
+    buildBalls();
+    document.getElementById('gameover-overlay').classList.add('hidden');
+    document.getElementById('controls').classList.add('hidden');
+    setStatus('STANDBY');
+    document.getElementById('bar-fill').classList.remove('danger');
+    document.getElementById('cpu-indicator').classList.remove('show');
+    document.getElementById('robot-wrap').classList.remove('thinking');
+    document.getElementById('menu-overlay').classList.remove('hidden');
+  }
+</script>
 </body>
 </html>
