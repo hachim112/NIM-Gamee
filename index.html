@@ -2,11 +2,12 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Mission: Zero - Misere Edition</title>
+    <title>Mission: Zero - Randomized Misere Edition</title>
     <style>
         body { background: #1a1a1a; color: white; font-family: 'Segoe UI', sans-serif; display: flex; flex-direction: column; align-items: center; margin: 0; min-height: 100vh; justify-content: center; }
         .viewport { position: relative; width: 800px; height: 600px; background: #2c3e50; border-radius: 15px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-        .layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; }
+        .layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; pointer-events: none; }
+        #svg-menu { pointer-events: all; z-index: 200; }
         #ui-controls { position: absolute; bottom: 30px; width: 100%; display: none; justify-content: center; gap: 15px; z-index: 100; }
         button { padding: 12px 25px; font-size: 18px; cursor: pointer; border-radius: 8px; border: none; background: #3498db; color: white; font-weight: bold; transition: 0.2s; }
         button:hover:not(:disabled) { background: #2980b9; transform: scale(1.05); }
@@ -20,7 +21,7 @@
         <object id="svg-board" class="layer" data="board.svg" type="image/svg+xml"></object>
         <object id="svg-char" class="layer" data="character.svg" type="image/svg+xml"></object>
         <object id="svg-hud" class="layer" data="ui_feedback.svg" type="image/svg+xml"></object>
-        <object id="svg-menu" class="layer" data="menu.svg" type="image/svg+xml" style="z-index: 200;"></object>
+        <object id="svg-menu" class="layer" data="menu.svg" type="image/svg+xml"></object>
     </div>
 
     <div id="ui-controls">
@@ -30,18 +31,34 @@
     </div>
 
     <script>
+        let totalInitialBalls = 15;
         let count = 15; 
         let isPlayerTurn = false;
 
         function initGame(choice) {
+            // Generate random balls between 9 and 21
+            totalInitialBalls = Math.floor(Math.random() * (21 - 9 + 1)) + 9;
+            count = totalInitialBalls;
+
             document.getElementById('svg-menu').style.display = 'none';
             document.getElementById('ui-controls').style.display = 'flex';
-            updateStatus("Game Started!");
+            
+            setupBoard(); // Hide balls that are beyond our random count
+            updateStatus("Mission Started!");
             
             if (choice === 'pc') {
                 startCpuTurn();
             } else {
                 startPlayerTurn();
+            }
+        }
+
+        function setupBoard() {
+            const boardDoc = document.getElementById('svg-board').contentDocument;
+            // Hide any balls above our random starting number (up to max 21)
+            for (let i = 21; i > count; i--) {
+                const ball = boardDoc.getElementById('ball-' + i);
+                if (ball) ball.style.display = 'none';
             }
         }
 
@@ -51,7 +68,7 @@
             if (count > 0) {
                 startCpuTurn();
             } else {
-                endGame(true); // Player took the last ball
+                endGame(true); // Player took the very last ball
             }
         }
 
@@ -61,11 +78,9 @@
             updateStatus("CPU thinking...");
             
             setTimeout(() => {
-                // Misere Play Logic: Aim for positions 1, 5, 9, 13
+                // Optimal Misere Strategy: Target (count - 1) % 4 == 0
                 let target = (count - 1) % 4;
-                let take = target === 0 ? 1 : target; 
-                
-                // Ensure we don't take more than exists
+                let take = (target === 0) ? 1 : target; 
                 take = Math.min(take, count);
                 
                 executeMove(take);
@@ -73,16 +88,16 @@
                 if (count > 0) {
                     startPlayerTurn();
                 } else {
-                    endGame(false); // CPU took the last ball
+                    endGame(false); // CPU took the very last ball
                 }
-            }, 1000);
+            }, 1200);
         }
 
         function startPlayerTurn() {
             isPlayerTurn = true;
             toggleBtns(true);
             updateStatus("Your Turn!");
-            // Disable buttons if count is low
+            // Dynamic button disabling based on remaining balls
             if(count < 3) document.getElementById('btn-3').disabled = true;
             if(count < 2) document.getElementById('btn-2').disabled = true;
         }
@@ -90,21 +105,19 @@
         function executeMove(n) {
             const boardDoc = document.getElementById('svg-board').contentDocument;
             for (let i = 0; i < n; i++) {
-                // Assumes your board.svg has elements with ID "ball-1", "ball-2", etc.
                 const ball = boardDoc.getElementById('ball-' + count);
-                if (ball) ball.style.opacity = '0'; 
+                if (ball) ball.style.opacity = '0'; // Smooth fade
                 count--;
             }
             updateHud();
         }
 
         function updateStatus(msg) {
-            // Using a simple fallback if hud.svg text element isn't found
             try {
                 const hudDoc = document.getElementById('svg-hud').contentDocument;
-                const status = hudDoc.getElementById('status-txt');
-                if(status) status.textContent = msg;
-            } catch(e) { console.log(msg); }
+                const txt = hudDoc.getElementById('status-txt');
+                if(txt) txt.textContent = msg;
+            } catch(e) {}
         }
 
         function updateHud() {
@@ -112,8 +125,8 @@
                 const hudDoc = document.getElementById('svg-hud').contentDocument;
                 const bar = hudDoc.getElementById('bar-grow');
                 if(bar) {
-                    const progress = (count / 15) * 100;
-                    bar.setAttribute('width', progress + '%');
+                    const widthPercent = (count / totalInitialBalls) * 100;
+                    bar.setAttribute('width', widthPercent + '%');
                 }
             } catch(e) {}
         }
@@ -124,10 +137,9 @@
 
         function endGame(playerTookLast) {
             document.getElementById('ui-controls').style.display = 'none';
-            // In Misere Play, the one who takes the last ball LOSES
-            const result = playerTookLast ? "YOU LOST! (Took last ball)" : "YOU WON! (CPU took last ball)";
-            updateStatus(result);
-            alert(result);
+            const msg = playerTookLast ? "GAME OVER: YOU LOST!" : "MISSION SUCCESS: YOU WON!";
+            updateStatus(msg);
+            alert(msg);
         }
     </script>
 </body>
