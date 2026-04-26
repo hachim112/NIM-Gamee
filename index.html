@@ -1,756 +1,357 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Mission: Zero</title>
-<style>
-  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Exo+2:wght@300;400;600&display=swap');
+  <meta charset="UTF-8">
+  <title>Mission: Zero</title>
+  <style>
+    body {
+      background: #1a1a1a;
+      color: white;
+      font-family: 'Segoe UI', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 0;
+      padding: 20px;
+    }
+    .viewport {
+      position: relative;
+      width: 800px;
+      height: 600px;
+      border-radius: 15px;
+      overflow: hidden;
+    }
+    .layer {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+    }
+    #layer-bg       { z-index: 1; }
+    #layer-board    { z-index: 2; }
+    #layer-char     { z-index: 3; }
+    #layer-hud      { z-index: 4; }
+    #layer-menu     { z-index: 10; }
+    #layer-gameover { z-index: 20; }
 
-  :root {
-    --bg: #070b14;
-    --panel: #0d1526;
-    --border: #1e3a5f;
-    --accent: #00d4ff;
-    --accent2: #ff6b35;
-    --green: #00ff9d;
-    --red: #ff3b5c;
-    --ball-player: #00d4ff;
-    --ball-danger: #ff3b5c;
-    --text: #c8dff0;
-    --dim: #4a6a8a;
-  }
-
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'Exo 2', sans-serif;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    min-height: 100vh;
-    padding: 20px;
-    overflow-x: hidden;
-  }
-
-  /* Starfield background */
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background-image:
-      radial-gradient(1px 1px at 10% 15%, rgba(255,255,255,0.6) 0%, transparent 100%),
-      radial-gradient(1px 1px at 80% 25%, rgba(255,255,255,0.4) 0%, transparent 100%),
-      radial-gradient(1.5px 1.5px at 35% 60%, rgba(255,255,255,0.5) 0%, transparent 100%),
-      radial-gradient(1px 1px at 60% 85%, rgba(255,255,255,0.3) 0%, transparent 100%),
-      radial-gradient(1px 1px at 90% 70%, rgba(255,255,255,0.5) 0%, transparent 100%),
-      radial-gradient(1px 1px at 20% 90%, rgba(255,255,255,0.3) 0%, transparent 100%),
-      radial-gradient(1.5px 1.5px at 50% 40%, rgba(0,212,255,0.3) 0%, transparent 100%);
-    pointer-events: none;
-    z-index: 0;
-  }
-
-  /* Scanline effect */
-  body::after {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background: repeating-linear-gradient(
-      0deg,
-      transparent,
-      transparent 2px,
-      rgba(0,0,0,0.08) 2px,
-      rgba(0,0,0,0.08) 4px
-    );
-    pointer-events: none;
-    z-index: 1;
-  }
-
-  .game-wrapper {
-    position: relative;
-    z-index: 2;
-    width: 100%;
-    max-width: 820px;
-  }
-
-  /* ── HEADER ── */
-  .header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 14px;
-    padding: 0 4px;
-  }
-  .logo {
-    font-family: 'Orbitron', monospace;
-    font-size: 22px;
-    font-weight: 900;
-    letter-spacing: 4px;
-    color: var(--accent);
-    text-shadow: 0 0 20px rgba(0,212,255,0.5);
-  }
-  .logo span { color: var(--accent2); }
-  .tagline {
-    font-size: 11px;
-    letter-spacing: 2px;
-    color: var(--dim);
-    text-transform: uppercase;
-  }
-
-  /* ── VIEWPORT ── */
-  .viewport {
-    position: relative;
-    width: 100%;
-    aspect-ratio: 800/600;
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    overflow: hidden;
-    box-shadow: 0 0 60px rgba(0,212,255,0.08), inset 0 0 40px rgba(0,0,0,0.5);
-  }
-
-  /* ── CORNER DECORATIONS ── */
-  .corner {
-    position: absolute;
-    width: 24px; height: 24px;
-    border-color: var(--accent);
-    border-style: solid;
-    z-index: 10;
-    opacity: 0.5;
-  }
-  .corner-tl { top: 8px; left: 8px; border-width: 2px 0 0 2px; }
-  .corner-tr { top: 8px; right: 8px; border-width: 2px 2px 0 0; }
-  .corner-bl { bottom: 8px; left: 8px; border-width: 0 0 2px 2px; }
-  .corner-br { bottom: 8px; right: 8px; border-width: 0 2px 2px 0; }
-
-  /* ── HUD ── */
-  .hud {
-    position: absolute;
-    top: 14px;
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 6px;
-    z-index: 20;
-    width: 340px;
-  }
-  .hud-bar-track {
-    width: 100%;
-    height: 8px;
-    background: rgba(255,255,255,0.06);
-    border-radius: 4px;
-    border: 1px solid rgba(0,212,255,0.15);
-    overflow: hidden;
-  }
-  .hud-bar-fill {
-    height: 100%;
-    background: linear-gradient(90deg, var(--accent), var(--green));
-    border-radius: 4px;
-    transition: width 0.4s cubic-bezier(.4,0,.2,1);
-    box-shadow: 0 0 10px rgba(0,212,255,0.5);
-  }
-  .hud-bar-fill.danger {
-    background: linear-gradient(90deg, var(--accent2), var(--red));
-    box-shadow: 0 0 10px rgba(255,59,92,0.5);
-  }
-  .hud-status {
-    font-family: 'Orbitron', monospace;
-    font-size: 13px;
-    font-weight: 700;
-    letter-spacing: 2px;
-    color: var(--accent);
-    text-shadow: 0 0 12px rgba(0,212,255,0.5);
-    text-transform: uppercase;
-  }
-  .hud-count {
-    font-family: 'Orbitron', monospace;
-    font-size: 10px;
-    color: var(--dim);
-    letter-spacing: 1px;
-  }
-
-  /* ── ROBOT ── */
-  .robot-container {
-    position: absolute;
-    top: 12px;
-    right: 16px;
-    z-index: 20;
-  }
-  .robot-container svg {
-    filter: drop-shadow(0 0 12px rgba(142,68,173,0.6));
-    animation: bob 3s ease-in-out infinite;
-  }
-  @keyframes bob {
-    0%,100% { transform: translateY(0); }
-    50% { transform: translateY(8px); }
-  }
-  .robot-container.thinking svg {
-    animation: shake 0.15s infinite, bob 3s ease-in-out infinite;
-    filter: drop-shadow(0 0 16px rgba(231,76,60,0.8));
-  }
-  @keyframes shake {
-    0%,100% { transform: translateX(0) translateY(var(--bob,0)); }
-    50% { transform: translateX(3px) translateY(var(--bob,0)); }
-  }
-
-  /* ── BOARD AREA ── */
-  .board-area {
-    position: absolute;
-    top: 110px;
-    left: 0; right: 0;
-    bottom: 100px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 0;
-    z-index: 15;
-    padding: 10px 30px;
-  }
-  .balls-grid {
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: 14px;
-    width: 100%;
-    max-width: 480px;
-  }
-  .ball {
-    aspect-ratio: 1;
-    border-radius: 50%;
-    background: radial-gradient(circle at 35% 35%, rgba(255,255,255,0.5), var(--ball-player) 60%, #004a77);
-    box-shadow: 0 4px 14px rgba(0,212,255,0.4), inset 0 -3px 6px rgba(0,0,0,0.3);
-    transition: transform 0.25s, opacity 0.35s, box-shadow 0.25s;
-    cursor: default;
-    position: relative;
-  }
-  .ball::after {
-    content: '';
-    position: absolute;
-    top: 18%; left: 25%;
-    width: 30%; height: 20%;
-    background: rgba(255,255,255,0.35);
-    border-radius: 50%;
-    transform: rotate(-30deg);
-  }
-  .ball.danger {
-    background: radial-gradient(circle at 35% 35%, rgba(255,255,255,0.5), var(--ball-danger) 60%, #700020);
-    box-shadow: 0 4px 14px rgba(255,59,92,0.4), inset 0 -3px 6px rgba(0,0,0,0.3);
-    animation: pulse-danger 0.8s ease-in-out infinite alternate;
-  }
-  @keyframes pulse-danger {
-    from { box-shadow: 0 4px 14px rgba(255,59,92,0.4); }
-    to   { box-shadow: 0 4px 22px rgba(255,59,92,0.8), 0 0 30px rgba(255,59,92,0.3); }
-  }
-  .ball.removed {
-    opacity: 0;
-    transform: scale(0.3);
-    pointer-events: none;
-  }
-  .ball.just-removed {
-    animation: pop-out 0.35s forwards;
-  }
-  @keyframes pop-out {
-    0%   { transform: scale(1); opacity: 1; }
-    40%  { transform: scale(1.3); opacity: 0.7; }
-    100% { transform: scale(0); opacity: 0; }
-  }
-
-  /* ── BOTTOM CONTROLS ── */
-  .controls {
-    position: absolute;
-    bottom: 0;
-    left: 0; right: 0;
-    height: 90px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 16px;
-    z-index: 20;
-    background: linear-gradient(0deg, rgba(7,11,20,0.9) 0%, transparent 100%);
-    padding: 0 30px 14px;
-  }
-  .take-btn {
-    font-family: 'Orbitron', monospace;
-    font-size: 14px;
-    font-weight: 700;
-    letter-spacing: 2px;
-    padding: 12px 28px;
-    border: 1px solid var(--accent);
-    background: rgba(0,212,255,0.08);
-    color: var(--accent);
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.2s;
-    text-transform: uppercase;
-    position: relative;
-    overflow: hidden;
-  }
-  .take-btn::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: var(--accent);
-    opacity: 0;
-    transition: opacity 0.2s;
-  }
-  .take-btn:hover:not(:disabled)::before { opacity: 0.12; }
-  .take-btn:active:not(:disabled) { transform: scale(0.96); }
-  .take-btn:disabled {
-    border-color: var(--dim);
-    color: var(--dim);
-    cursor: not-allowed;
-    opacity: 0.4;
-  }
-  .take-btn span { position: relative; z-index: 1; }
-
-  /* ── OVERLAYS ── */
-  .overlay {
-    position: absolute;
-    inset: 0;
-    z-index: 100;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 0;
-  }
-  .overlay-bg {
-    position: absolute;
-    inset: 0;
-    background: rgba(7,11,20,0.92);
-    backdrop-filter: blur(4px);
-  }
-  .overlay-content {
-    position: relative;
-    z-index: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 16px;
-    text-align: center;
-    padding: 40px;
-  }
-
-  /* Menu */
-  .menu-title {
-    font-family: 'Orbitron', monospace;
-    font-size: 38px;
-    font-weight: 900;
-    color: var(--accent);
-    letter-spacing: 6px;
-    text-shadow: 0 0 30px rgba(0,212,255,0.5);
-    margin-bottom: 6px;
-  }
-  .menu-sub {
-    font-size: 12px;
-    letter-spacing: 3px;
-    color: var(--dim);
-    text-transform: uppercase;
-    margin-bottom: 30px;
-  }
-  .menu-rule {
-    font-size: 13px;
-    color: var(--text);
-    letter-spacing: 1px;
-    background: rgba(0,212,255,0.06);
-    border: 1px solid rgba(0,212,255,0.15);
-    border-radius: 8px;
-    padding: 12px 20px;
-    max-width: 400px;
-    margin-bottom: 28px;
-    line-height: 1.7;
-  }
-  .menu-rule strong { color: var(--red); }
-  .menu-q {
-    font-family: 'Orbitron', monospace;
-    font-size: 13px;
-    letter-spacing: 2px;
-    color: var(--dim);
-    margin-bottom: 8px;
-    text-transform: uppercase;
-  }
-  .menu-btns { display: flex; gap: 16px; }
-  .menu-btn {
-    font-family: 'Orbitron', monospace;
-    font-size: 15px;
-    font-weight: 700;
-    letter-spacing: 3px;
-    padding: 14px 36px;
-    border-radius: 10px;
-    border: none;
-    cursor: pointer;
-    transition: transform 0.15s, box-shadow 0.15s;
-    text-transform: uppercase;
-  }
-  .menu-btn:hover { transform: translateY(-2px); }
-  .menu-btn:active { transform: translateY(0); }
-  .menu-btn.me {
-    background: linear-gradient(135deg, var(--green), #00a86b);
-    color: #001a0e;
-    box-shadow: 0 6px 20px rgba(0,255,157,0.3);
-  }
-  .menu-btn.pc {
-    background: linear-gradient(135deg, var(--accent2), #c0392b);
-    color: #fff;
-    box-shadow: 0 6px 20px rgba(255,107,53,0.3);
-  }
-
-  /* Game Over */
-  .go-title {
-    font-family: 'Orbitron', monospace;
-    font-size: 52px;
-    font-weight: 900;
-    letter-spacing: 4px;
-    text-shadow: 0 0 40px currentColor;
-    animation: glitch 2s infinite;
-  }
-  @keyframes glitch {
-    0%,92%,100% { clip-path: none; transform: none; }
-    93% { clip-path: inset(30% 0 40% 0); transform: translateX(-4px); }
-    94% { clip-path: inset(60% 0 10% 0); transform: translateX(4px); }
-    95% { clip-path: none; transform: none; }
-  }
-  .go-result {
-    font-size: 16px;
-    letter-spacing: 2px;
-    color: var(--text);
-    margin-bottom: 10px;
-  }
-  .go-score {
-    font-family: 'Orbitron', monospace;
-    font-size: 12px;
-    color: var(--dim);
-    letter-spacing: 1px;
-  }
-  .restart-btn {
-    font-family: 'Orbitron', monospace;
-    font-size: 14px;
-    font-weight: 700;
-    letter-spacing: 3px;
-    padding: 14px 40px;
-    border-radius: 10px;
-    border: 1px solid var(--accent);
-    background: rgba(0,212,255,0.1);
-    color: var(--accent);
-    cursor: pointer;
-    transition: all 0.2s;
-    text-transform: uppercase;
-    margin-top: 18px;
-    animation: blink-border 1.5s ease-in-out infinite;
-  }
-  .restart-btn:hover {
-    background: rgba(0,212,255,0.2);
-    box-shadow: 0 0 20px rgba(0,212,255,0.3);
-  }
-  @keyframes blink-border {
-    0%,100% { border-color: var(--accent); box-shadow: 0 0 8px rgba(0,212,255,0.2); }
-    50% { border-color: rgba(0,212,255,0.3); box-shadow: none; }
-  }
-
-  /* ── CPU MOVE FLASH ── */
-  .cpu-took-indicator {
-    position: absolute;
-    top: 60px; left: 50%; transform: translateX(-50%);
-    font-family: 'Orbitron', monospace;
-    font-size: 12px;
-    letter-spacing: 2px;
-    color: var(--accent2);
-    z-index: 30;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.3s;
-  }
-  .cpu-took-indicator.show { opacity: 1; }
-
-  /* Hidden util */
-  .hidden { display: none !important; }
-</style>
+    #ui-controls {
+      position: absolute;
+      bottom: 28px;
+      width: 100%;
+      display: none;
+      justify-content: center;
+      gap: 16px;
+      z-index: 15;
+    }
+    #ui-controls button {
+      padding: 12px 28px;
+      font-size: 17px;
+      font-weight: bold;
+      cursor: pointer;
+      border-radius: 8px;
+      border: 2px solid #3498db;
+      background: rgba(52,152,219,0.15);
+      color: #7ecfff;
+      letter-spacing: 1px;
+      transition: background 0.15s, transform 0.1s;
+    }
+    #ui-controls button:hover:not(:disabled) {
+      background: rgba(52,152,219,0.35);
+      transform: translateY(-2px);
+    }
+    #ui-controls button:disabled {
+      border-color: #555;
+      color: #555;
+      cursor: not-allowed;
+      background: transparent;
+    }
+  </style>
 </head>
 <body>
-<div class="game-wrapper">
 
-  <!-- Header -->
-  <div class="header">
-    <div class="logo">MISSION<span>:</span>ZERO</div>
-    <div class="tagline">Last ball loses · Take 1, 2 or 3</div>
+<div class="viewport" id="viewport">
+
+  <!-- BACKGROUND SVG -->
+  <svg class="layer" id="layer-bg" viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="600" fill="#0f172a"/>
+    <circle cx="100" cy="100" r="2" fill="white"><animate attributeName="opacity" values="1;0.2;1" dur="3s" repeatCount="indefinite"/></circle>
+    <circle cx="700" cy="500" r="1.5" fill="white"><animate attributeName="opacity" values="0.2;1;0.2" dur="4s" repeatCount="indefinite"/></circle>
+    <circle cx="200" cy="450" r="1" fill="white"><animate attributeName="opacity" values="1;0.1;1" dur="2.5s" repeatCount="indefinite"/></circle>
+    <circle cx="600" cy="80" r="1.5" fill="white"><animate attributeName="opacity" values="0.3;1;0.3" dur="5s" repeatCount="indefinite"/></circle>
+    <circle cx="400" cy="520" r="1" fill="white"><animate attributeName="opacity" values="1;0.3;1" dur="3.5s" repeatCount="indefinite"/></circle>
+    <circle cx="750" cy="200" r="1" fill="#7ecfff"><animate attributeName="opacity" values="0.5;1;0.5" dur="4s" repeatCount="indefinite"/></circle>
+    <circle cx="50" cy="300" r="1" fill="white"><animate attributeName="opacity" values="1;0.2;1" dur="6s" repeatCount="indefinite"/></circle>
+  </svg>
+
+  <!-- BOARD SVG — exactly 15 balls, 3 rows of 5 -->
+  <svg class="layer" id="layer-board" viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg">
+    <rect x="60" y="140" width="680" height="280" rx="18"
+          fill="rgba(255,255,255,0.04)" stroke="rgba(52,152,219,0.25)" stroke-width="1.5"/>
+    <g id="ball-container">
+      <!-- ROW 1: balls 1-5 -->
+      <circle id="ball-1"  cx="160" cy="230" r="28" fill="#3498db" stroke="#7ecfff" stroke-width="2"/>
+      <circle id="ball-2"  cx="290" cy="230" r="28" fill="#3498db" stroke="#7ecfff" stroke-width="2"/>
+      <circle id="ball-3"  cx="400" cy="230" r="28" fill="#3498db" stroke="#7ecfff" stroke-width="2"/>
+      <circle id="ball-4"  cx="510" cy="230" r="28" fill="#3498db" stroke="#7ecfff" stroke-width="2"/>
+      <circle id="ball-5"  cx="640" cy="230" r="28" fill="#3498db" stroke="#7ecfff" stroke-width="2"/>
+      <!-- ROW 2: balls 6-10 -->
+      <circle id="ball-6"  cx="160" cy="310" r="28" fill="#3498db" stroke="#7ecfff" stroke-width="2"/>
+      <circle id="ball-7"  cx="290" cy="310" r="28" fill="#3498db" stroke="#7ecfff" stroke-width="2"/>
+      <circle id="ball-8"  cx="400" cy="310" r="28" fill="#3498db" stroke="#7ecfff" stroke-width="2"/>
+      <circle id="ball-9"  cx="510" cy="310" r="28" fill="#3498db" stroke="#7ecfff" stroke-width="2"/>
+      <circle id="ball-10" cx="640" cy="310" r="28" fill="#3498db" stroke="#7ecfff" stroke-width="2"/>
+      <!-- ROW 3: balls 11-15 -->
+      <circle id="ball-11" cx="160" cy="390" r="28" fill="#3498db" stroke="#7ecfff" stroke-width="2"/>
+      <circle id="ball-12" cx="290" cy="390" r="28" fill="#3498db" stroke="#7ecfff" stroke-width="2"/>
+      <circle id="ball-13" cx="400" cy="390" r="28" fill="#3498db" stroke="#7ecfff" stroke-width="2"/>
+      <circle id="ball-14" cx="510" cy="390" r="28" fill="#3498db" stroke="#7ecfff" stroke-width="2"/>
+      <circle id="ball-15" cx="640" cy="390" r="28" fill="#3498db" stroke="#7ecfff" stroke-width="2"/>
+    </g>
+  </svg>
+
+  <!-- CHARACTER SVG (your robot) -->
+  <svg class="layer" id="layer-char" viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg">
+    <g id="robot" transform="translate(650,100)">
+      <rect x="-40" y="-40" width="80" height="80" rx="10" fill="#8e44ad" stroke="#fff" stroke-width="3">
+        <animate id="cpu-think" attributeName="fill" from="#8e44ad" to="#e74c3c" dur="0.5s" begin="indefinite" repeatCount="3"/>
+      </rect>
+      <circle cx="-15" cy="-10" r="5" fill="cyan"/>
+      <circle cx="15"  cy="-10" r="5" fill="cyan"/>
+      <animateTransform attributeName="transform" type="translate"
+        values="650,100; 650,110; 650,100" dur="3s" repeatCount="indefinite"/>
+    </g>
+  </svg>
+
+  <!-- UI FEEDBACK SVG (your original HUD + count + cpu flash) -->
+  <svg class="layer" id="layer-hud" viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg">
+    <rect id="bar-bg"   x="250" y="20" width="300" height="20" rx="10" fill="#34495e"/>
+    <rect id="bar-grow" x="250" y="20" width="300" height="20" rx="10" fill="#2ecc71"/>
+    <text id="status-txt" x="400" y="75" font-family="Arial" font-size="24"
+          fill="white" text-anchor="middle">Welcome, Agent</text>
+    <text id="count-txt" x="400" y="100" font-family="Arial" font-size="14"
+          fill="#7ecfff" text-anchor="middle" opacity="0.8">15 balls remaining</text>
+    <text id="cpu-flash" x="400" y="122" font-family="Arial" font-size="13"
+          fill="#e67e22" text-anchor="middle" opacity="0">CPU took …</text>
+  </svg>
+
+  <!-- MENU SVG -->
+  <svg class="layer" id="layer-menu" viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg">
+    <rect width="100%" height="100%" fill="#34495e"/>
+    <circle cx="80"  cy="60"  r="1.5" fill="white" opacity="0.5"/>
+    <circle cx="720" cy="540" r="1"   fill="white" opacity="0.4"/>
+    <circle cx="400" cy="30"  r="1"   fill="#7ecfff" opacity="0.6"/>
+
+    <text x="400" y="155" font-family="Arial" font-size="46" font-weight="bold"
+          fill="white" text-anchor="middle">MISSION: ZERO</text>
+    <text x="400" y="200" font-family="Arial" font-size="16"
+          fill="#bdc3c7" text-anchor="middle">A Mathematical Strategy Game</text>
+
+    <rect x="220" y="225" width="360" height="85" rx="10"
+          fill="rgba(0,0,0,0.3)" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+    <text x="400" y="252" font-family="Arial" font-size="13"
+          fill="#ecf0f1" text-anchor="middle">Take 1, 2 or 3 balls per turn.</text>
+    <text x="400" y="276" font-family="Arial" font-size="13"
+          fill="#e74c3c" text-anchor="middle" font-weight="bold">The player who takes the LAST ball LOSES.</text>
+    <text x="400" y="300" font-family="Arial" font-size="13"
+          fill="#ecf0f1" text-anchor="middle">15 balls total — play optimally!</text>
+
+    <text x="400" y="358" font-family="Arial" font-size="18"
+          fill="#bdc3c7" text-anchor="middle">Who goes first?</text>
+
+    <!-- ME button -->
+    <g cursor="pointer" onclick="initGame('me')">
+      <rect x="220" y="375" width="140" height="56" rx="12" fill="#2ecc71"/>
+      <text x="290" y="410" font-family="Arial" font-size="22" font-weight="bold"
+            fill="white" text-anchor="middle">ME</text>
+    </g>
+
+    <!-- CPU button -->
+    <g cursor="pointer" onclick="initGame('pc')">
+      <rect x="440" y="375" width="140" height="56" rx="12" fill="#e67e22"/>
+      <text x="510" y="410" font-family="Arial" font-size="22" font-weight="bold"
+            fill="white" text-anchor="middle">CPU</text>
+    </g>
+  </svg>
+
+  <!-- GAME OVER SVG -->
+  <svg class="layer" id="layer-gameover" viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg"
+       style="display:none; cursor:pointer;" onclick="restartGame()">
+    <rect width="100%" height="100%" fill="rgba(0,0,0,0.85)"/>
+    <text id="game-over-title" x="400" y="230" font-family="Arial" font-size="64"
+          fill="#e74c3c" text-anchor="middle" font-weight="bold">GAME OVER</text>
+    <text id="game-over-result" x="400" y="295" font-family="Arial" font-size="21"
+          fill="#bdc3c7" text-anchor="middle">—</text>
+
+    <!-- PLAY AGAIN button -->
+    <g cursor="pointer">
+      <rect x="300" y="350" width="200" height="55" rx="12" fill="#3498db"/>
+      <text x="400" y="384" font-family="Arial" font-size="19" font-weight="bold"
+            fill="white" text-anchor="middle">▶  PLAY AGAIN</text>
+      <rect x="300" y="350" width="200" height="55" rx="12"
+            fill="none" stroke="white" stroke-width="1.5" opacity="0.4">
+        <animate attributeName="opacity" values="0.4;0.9;0.4" dur="1.5s" repeatCount="indefinite"/>
+      </rect>
+    </g>
+
+    <text x="400" y="460" font-family="Arial" font-size="14"
+          fill="#7f8c8d" text-anchor="middle">click anywhere to restart</text>
+  </svg>
+
+  <!-- HTML buttons on top of everything -->
+  <div id="ui-controls">
+    <button id="btn-1" onclick="playMove(1)">Take 1</button>
+    <button id="btn-2" onclick="playMove(2)">Take 2</button>
+    <button id="btn-3" onclick="playMove(3)">Take 3</button>
   </div>
 
-  <!-- Main Viewport -->
-  <div class="viewport" id="viewport">
-
-    <!-- Corner decorations -->
-    <div class="corner corner-tl"></div>
-    <div class="corner corner-tr"></div>
-    <div class="corner corner-bl"></div>
-    <div class="corner corner-br"></div>
-
-    <!-- HUD -->
-    <div class="hud" id="hud">
-      <div class="hud-status" id="status-txt">STANDBY</div>
-      <div class="hud-bar-track">
-        <div class="hud-bar-fill" id="bar-fill"></div>
-      </div>
-      <div class="hud-count" id="ball-count">15 / 15 OBJECTS REMAINING</div>
-    </div>
-
-    <!-- Robot -->
-    <div class="robot-container" id="robot-wrap">
-      <svg width="70" height="70" viewBox="0 0 80 80">
-        <rect x="10" y="10" width="60" height="60" rx="12" fill="#8e44ad" stroke="#c39bd3" stroke-width="2"/>
-        <rect x="10" y="10" width="60" height="60" rx="12" fill="url(#rg)" opacity="0.5"/>
-        <defs>
-          <linearGradient id="rg" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stop-color="#fff" stop-opacity="0.2"/>
-            <stop offset="100%" stop-color="#000" stop-opacity="0"/>
-          </linearGradient>
-        </defs>
-        <circle cx="28" cy="33" r="7" fill="#00d4ff" opacity="0.9"/>
-        <circle cx="52" cy="33" r="7" fill="#00d4ff" opacity="0.9"/>
-        <circle cx="28" cy="33" r="3" fill="#001a2e"/>
-        <circle cx="52" cy="33" r="3" fill="#001a2e"/>
-        <rect x="26" y="52" width="28" height="6" rx="3" fill="#c39bd3" opacity="0.6"/>
-        <rect x="30" y="54" width="6" height="2" rx="1" fill="#fff" opacity="0.8"/>
-        <rect x="38" y="54" width="12" height="2" rx="1" fill="#fff" opacity="0.4"/>
-      </svg>
-    </div>
-
-    <!-- CPU took indicator -->
-    <div class="cpu-took-indicator" id="cpu-indicator">CPU TOOK</div>
-
-    <!-- Board -->
-    <div class="board-area">
-      <div class="balls-grid" id="balls-grid"></div>
-    </div>
-
-    <!-- Controls -->
-    <div class="controls hidden" id="controls">
-      <button class="take-btn" id="btn1" onclick="playMove(1)"><span>TAKE 1</span></button>
-      <button class="take-btn" id="btn2" onclick="playMove(2)"><span>TAKE 2</span></button>
-      <button class="take-btn" id="btn3" onclick="playMove(3)"><span>TAKE 3</span></button>
-    </div>
-
-    <!-- MENU OVERLAY -->
-    <div class="overlay" id="menu-overlay">
-      <div class="overlay-bg"></div>
-      <div class="overlay-content">
-        <div class="menu-title">MISSION<br>ZERO</div>
-        <div class="menu-sub">Strategic elimination · 15 objects</div>
-        <div class="menu-rule">
-          On each turn, remove <strong>1, 2, or 3</strong> objects.<br>
-          The player who takes the <strong>last object loses</strong>.
-        </div>
-        <div class="menu-q">WHO GOES FIRST?</div>
-        <div class="menu-btns">
-          <button class="menu-btn me" onclick="initGame('me')">ME</button>
-          <button class="menu-btn pc" onclick="initGame('pc')">CPU</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- GAME OVER OVERLAY -->
-    <div class="overlay hidden" id="gameover-overlay">
-      <div class="overlay-bg"></div>
-      <div class="overlay-content">
-        <div class="go-title" id="go-title">YOU WIN!</div>
-        <div class="go-result" id="go-result">The CPU took the last object.</div>
-        <div class="go-score" id="go-score"></div>
-        <button class="restart-btn" onclick="restartGame()">▶ PLAY AGAIN</button>
-      </div>
-    </div>
-
-  </div><!-- /viewport -->
-
-</div><!-- /wrapper -->
+</div>
 
 <script>
-  const TOTAL = 15;
-  let count = TOTAL;
+  const TOTAL_BALLS = 15;
+  let count        = TOTAL_BALLS;
   let isPlayerTurn = false;
-  let gameActive = false;
+  let gameActive   = false;
 
-  // ── BUILD BALLS ──
-  function buildBalls() {
-    const grid = document.getElementById('balls-grid');
-    grid.innerHTML = '';
-    for (let i = 1; i <= TOTAL; i++) {
-      const div = document.createElement('div');
-      div.className = 'ball';
-      div.id = 'ball-' + i;
-      grid.appendChild(div);
-    }
-    updateHud();
-  }
+  const boardSVG = document.getElementById('layer-board');
+  const hudSVG   = document.getElementById('layer-hud');
+  const menuSVG  = document.getElementById('layer-menu');
+  const goSVG    = document.getElementById('layer-gameover');
+  const controls = document.getElementById('ui-controls');
 
-  // ── INIT ──
-  buildBalls();
+  function getBall(n)   { return boardSVG.getElementById('ball-' + n); }
+  function getHud(id)   { return hudSVG.getElementById(id); }
 
+  /* ── INIT ── */
   function initGame(who) {
-    document.getElementById('menu-overlay').classList.add('hidden');
-    document.getElementById('controls').classList.remove('hidden');
+    menuSVG.style.display = 'none';
+    controls.style.display = 'flex';
     gameActive = true;
-
-    if (who === 'pc') {
-      cpuTurn();
-    } else {
-      playerTurn();
-    }
+    updateHud();
+    if (who === 'pc') cpuTurn();
+    else              playerTurn();
   }
 
-  // ── PLAYER ──
+  /* ── PLAYER ── */
   function playerTurn() {
     isPlayerTurn = true;
-    setStatus('YOUR TURN');
-    setButtonsEnabled(true);
-    refreshButtonStates();
+    setStatus('Your Turn!');
+    refreshBtns();
   }
 
   function playMove(n) {
-    if (!isPlayerTurn || !gameActive) return;
-    if (n > count) return;
-
-    removeBalls(n, false);
-
-    if (count <= 0) {
-      endGame(true); // player took last → player loses
-    } else {
-      cpuTurn();
-    }
+    if (!isPlayerTurn || !gameActive || n > count) return;
+    executeMove(n);
+    if (count <= 0) endGame(true);   // player took last → LOSES
+    else            cpuTurn();
   }
 
-  // ── CPU ──
+  /* ── CPU ── */
   function cpuTurn() {
     isPlayerTurn = false;
-    setStatus('CPU THINKING…');
-    setButtonsEnabled(false);
-    document.getElementById('robot-wrap').classList.add('thinking');
+    setStatus('CPU thinking…');
+    toggleBtns(false);
+    const anim = document.getElementById('cpu-think');
+    if (anim) anim.beginElement();
 
     setTimeout(() => {
-      document.getElementById('robot-wrap').classList.remove('thinking');
-
-      // Optimal strategy: leave opponent at a multiple of 4
-      // If (count-1) % 4 === 0, CPU must take 1 (forced losing position)
+      // Nim strategy: leave (count-1) % 4 === 0 for opponent
       let take = (count - 1) % 4;
-      if (take === 0) take = 1; // forced: no winning move
+      if (take === 0) take = 1;
       take = Math.min(take, count);
 
-      showCpuTook(take);
-      removeBalls(take, true);
+      const flash = getHud('cpu-flash');
+      flash.textContent = 'CPU took ' + take + ' ball' + (take > 1 ? 's' : '');
+      flash.setAttribute('opacity', '1');
+      setTimeout(() => flash.setAttribute('opacity', '0'), 1600);
 
-      if (count <= 0) {
-        setTimeout(() => endGame(false), 400); // cpu took last → player wins
-      } else {
-        setTimeout(() => playerTurn(), 500);
-      }
-    }, 1200);
+      executeMove(take);
+      if (count <= 0) endGame(false);  // CPU took last → player WINS
+      else            playerTurn();
+    }, 1300);
   }
 
-  // ── REMOVE BALLS ──
-  function removeBalls(n, isCpu) {
-    // Remove from highest-numbered ball down (most recently added)
+  /* ── EXECUTE MOVE — removes from highest ball index down ── */
+  function executeMove(n) {
     for (let i = 0; i < n; i++) {
-      const ball = document.getElementById('ball-' + count);
+      const ball = getBall(count);
       if (ball) {
-        ball.classList.add('just-removed');
-        setTimeout(() => ball.classList.add('removed'), 350);
+        ball.style.transition    = 'opacity 0.35s, transform 0.35s';
+        ball.style.transformBox  = 'fill-box';
+        ball.style.transformOrigin = 'center';
+        ball.style.opacity       = '0';
+        ball.style.transform     = 'scale(0.2)';
       }
       count--;
     }
-    setTimeout(() => {
-      updateHud();
-      refreshButtonStates();
-      updateDanger();
-    }, 360);
+    updateHud();
+    refreshBtns();
   }
 
-  // ── HUD ──
+  /* ── HUD ── */
+  function setStatus(msg) { getHud('status-txt').textContent = msg; }
+
   function updateHud() {
-    const pct = (count / TOTAL) * 100;
-    const bar = document.getElementById('bar-fill');
-    bar.style.width = pct + '%';
-    bar.classList.toggle('danger', count <= 4);
-    document.getElementById('ball-count').textContent =
-      count + ' / ' + TOTAL + ' OBJECTS REMAINING';
+    const pct = count / TOTAL_BALLS;
+    getHud('bar-grow').setAttribute('width', (pct * 300).toFixed(1));
+    getHud('bar-grow').setAttribute('fill',
+      count <= 1 ? '#e74c3c' : count <= 4 ? '#e67e22' : '#2ecc71');
+    getHud('count-txt').textContent =
+      count + ' ball' + (count !== 1 ? 's' : '') + ' remaining';
   }
 
-  function setStatus(msg) {
-    document.getElementById('status-txt').textContent = msg;
+  function refreshBtns() {
+    document.getElementById('btn-1').disabled = !isPlayerTurn || count < 1;
+    document.getElementById('btn-2').disabled = !isPlayerTurn || count < 2;
+    document.getElementById('btn-3').disabled = !isPlayerTurn || count < 3;
   }
 
-  // ── DANGER HIGHLIGHT (last 3 balls) ──
-  function updateDanger() {
-    for (let i = 1; i <= TOTAL; i++) {
-      const b = document.getElementById('ball-' + i);
-      if (!b) continue;
-      if (b.classList.contains('removed')) continue;
-      b.classList.toggle('danger', count <= 3);
-    }
+  function toggleBtns(on) {
+    ['btn-1','btn-2','btn-3'].forEach(id =>
+      document.getElementById(id).disabled = !on);
   }
 
-  // ── BUTTON STATES ──
-  function setButtonsEnabled(on) {
-    ['btn1','btn2','btn3'].forEach(id => {
-      document.getElementById(id).disabled = !on;
-    });
-  }
-
-  function refreshButtonStates() {
-    document.getElementById('btn1').disabled = !isPlayerTurn || count < 1;
-    document.getElementById('btn2').disabled = !isPlayerTurn || count < 2;
-    document.getElementById('btn3').disabled = !isPlayerTurn || count < 3;
-  }
-
-  // ── CPU TOOK INDICATOR ──
-  function showCpuTook(n) {
-    const el = document.getElementById('cpu-indicator');
-    el.textContent = 'CPU TOOK ' + n;
-    el.classList.add('show');
-    setTimeout(() => el.classList.remove('show'), 1800);
-  }
-
-  // ── GAME OVER ──
+  /* ── GAME OVER ── */
   function endGame(playerLost) {
     gameActive = false;
     isPlayerTurn = false;
-    setButtonsEnabled(false);
-    document.getElementById('controls').classList.add('hidden');
+    toggleBtns(false);
+    controls.style.display = 'none';
 
-    const title = document.getElementById('go-title');
-    const result = document.getElementById('go-result');
-    const score  = document.getElementById('go-score');
+    const title  = goSVG.getElementById('game-over-title');
+    const result = goSVG.getElementById('game-over-result');
 
     if (playerLost) {
-      title.textContent = 'YOU LOSE';
-      title.style.color = 'var(--red)';
-      result.textContent = 'You took the last object. Mission failed.';
+      title.textContent = 'YOU LOSE!';
+      title.setAttribute('fill', '#e74c3c');
+      result.textContent = 'You took the last ball. Mission failed.';
     } else {
-      title.textContent = 'YOU WIN';
-      title.style.color = 'var(--green)';
-      result.textContent = 'CPU took the last object. Mission complete!';
+      title.textContent = 'YOU WIN!';
+      title.setAttribute('fill', '#2ecc71');
+      result.textContent = 'CPU took the last ball. Mission complete!';
     }
-
-    score.textContent = '';
-
-    setTimeout(() => {
-      document.getElementById('gameover-overlay').classList.remove('hidden');
-    }, 600);
+    goSVG.style.display = 'block';
   }
 
-  // ── RESTART ──
+  /* ── RESTART ── */
   function restartGame() {
-    count = TOTAL;
+    count = TOTAL_BALLS;
     isPlayerTurn = false;
     gameActive = false;
-    buildBalls();
-    document.getElementById('gameover-overlay').classList.add('hidden');
-    document.getElementById('controls').classList.add('hidden');
-    setStatus('STANDBY');
-    document.getElementById('bar-fill').classList.remove('danger');
-    document.getElementById('cpu-indicator').classList.remove('show');
-    document.getElementById('robot-wrap').classList.remove('thinking');
-    document.getElementById('menu-overlay').classList.remove('hidden');
+
+    for (let i = 1; i <= TOTAL_BALLS; i++) {
+      const b = getBall(i);
+      if (b) {
+        b.style.opacity   = '1';
+        b.style.transform = 'scale(1)';
+      }
+    }
+
+    setStatus('Welcome, Agent');
+    updateHud();
+    getHud('cpu-flash').setAttribute('opacity', '0');
+
+    goSVG.style.display    = 'none';
+    menuSVG.style.display  = '';
+    controls.style.display = 'none';
   }
 </script>
 </body>
