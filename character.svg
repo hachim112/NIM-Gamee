@@ -1,0 +1,10 @@
+<svg viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg">
+    <g id="robot" transform="translate(650, 100)">
+        <rect x="-40" y="-40" width="80" height="80" rx="10" fill="#8e44ad" stroke="#fff" stroke-width="3">
+            <animate id="cpu-think" attributeName="fill" from="#8e44ad" to="#e74c3c" dur="0.5s" begin="indefinite" repeatCount="3" />
+        </rect>
+        <circle cx="-15" cy="-10" r="5" fill="cyan" />
+        <circle cx="15" cy="-10" r="5" fill="cyan" />
+        <animateTransform attributeName="transform" type="translate" values="650,100; 650,110; 650,100" dur="3s" repeatCount="indefinite" />
+    </g>
+</svg>

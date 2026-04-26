@@ -1,0 +1,18 @@
+<svg viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg">
+    <rect width="800" height="600" fill="rgba(0,0,0,0.7)"/>
+    <text x="400" y="200" fill="white" font-size="30" text-anchor="middle">Who starts the mission?</text>
+    
+    <g id="btn-me" cursor="pointer" onclick="parent.initGame('me')">
+        <rect x="250" y="250" width="120" height="50" rx="10" fill="#2ecc71">
+            <animate attributeName="opacity" values="0.8;1;0.8" dur="2s" repeatCount="indefinite" />
+        </rect>
+        <text x="310" y="282" fill="white" text-anchor="middle">ME</text>
+    </g>
+
+    <g id="btn-pc" cursor="pointer" onclick="parent.initGame('pc')">
+        <rect x="430" y="250" width="120" height="50" rx="10" fill="#e74c3c">
+            <animate attributeName="opacity" values="0.8;1;0.8" dur="2s" repeatCount="indefinite" />
+        </rect>
+        <text x="490" y="282" fill="white" text-anchor="middle">PC</text>
+    </g>
+</svg>
