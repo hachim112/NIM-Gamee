@@ -2,45 +2,41 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Mission: Zero - Master 1 Edition</title>
+    <title>Mission: Zero - Misere Edition</title>
     <style>
-        body { background: #1a1a1a; color: white; font-family: 'Segoe UI', sans-serif; display: flex; flex-direction: column; align-items: center; margin: 0; }
-        .viewport { position: relative; width: 800px; height: 600px; margin-top: 20px; background: #2c3e50; border-radius: 15px; overflow: hidden; }
+        body { background: #1a1a1a; color: white; font-family: 'Segoe UI', sans-serif; display: flex; flex-direction: column; align-items: center; margin: 0; min-height: 100vh; justify-content: center; }
+        .viewport { position: relative; width: 800px; height: 600px; background: #2c3e50; border-radius: 15px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
         .layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; }
         #ui-controls { position: absolute; bottom: 30px; width: 100%; display: none; justify-content: center; gap: 15px; z-index: 100; }
-        button { padding: 12px 25px; font-size: 18px; cursor: pointer; border-radius: 8px; border: none; background: #3498db; color: white; font-weight: bold; }
-        button:disabled { background: #7f8c8d; opacity: 0.5; }
+        button { padding: 12px 25px; font-size: 18px; cursor: pointer; border-radius: 8px; border: none; background: #3498db; color: white; font-weight: bold; transition: 0.2s; }
+        button:hover:not(:disabled) { background: #2980b9; transform: scale(1.05); }
+        button:disabled { background: #7f8c8d; opacity: 0.5; cursor: not-allowed; }
     </style>
 </head>
 <body>
 
     <div class="viewport">
-        <object id="svg-bg" class="layer" data="bg.svg" type="image/svg+xml"></object>
+        <object id="svg-bg" class="layer" data="background.svg" type="image/svg+xml"></object>
         <object id="svg-board" class="layer" data="board.svg" type="image/svg+xml"></object>
         <object id="svg-char" class="layer" data="character.svg" type="image/svg+xml"></object>
-        <object id="svg-menu" class="layer" data="menu.svg" type="image/svg+xml" style="display: block;"></object>
-        <object id="svg-hud" class="layer" data="hud.svg" type="image/svg+xml"></object>
+        <object id="svg-hud" class="layer" data="ui_feedback.svg" type="image/svg+xml"></object>
+        <object id="svg-menu" class="layer" data="menu.svg" type="image/svg+xml" style="z-index: 200;"></object>
     </div>
 
     <div id="ui-controls">
-        <button onclick="playMove(1)">Take 1</button>
-        <button onclick="playMove(2)">Take 2</button>
-        <button onclick="playMove(3)">Take 3</button>
+        <button onclick="playMove(1)" id="btn-1">Take 1</button>
+        <button onclick="playMove(2)" id="btn-2">Take 2</button>
+        <button onclick="playMove(3)" id="btn-3">Take 3</button>
     </div>
 
     <script>
-        let count = 15;
+        let count = 15; 
         let isPlayerTurn = false;
 
-        // Triggered from inside menu.svg when user clicks "Me" or "PC"
         function initGame(choice) {
-            const menuElement = document.getElementById('svg-menu');
-            if (menuElement) menuElement.style.display = 'none';
-            const boardElement = document.getElementById('svg-board');
-            if (boardElement) boardElement.style.display = 'block';
-            const hudElement = document.getElementById('svg-hud');
-            if (hudElement) hudElement.style.display = 'block';
+            document.getElementById('svg-menu').style.display = 'none';
             document.getElementById('ui-controls').style.display = 'flex';
+            updateStatus("Game Started!");
             
             if (choice === 'pc') {
                 startCpuTurn();
@@ -52,7 +48,11 @@
         function playMove(n) {
             if (!isPlayerTurn || n > count) return;
             executeMove(n);
-            if (count > 0) startCpuTurn();
+            if (count > 0) {
+                startCpuTurn();
+            } else {
+                endGame(true); // Player took the last ball
+            }
         }
 
         function startCpuTurn() {
@@ -60,50 +60,74 @@
             toggleBtns(false);
             updateStatus("CPU thinking...");
             
-            // Trigger SMIL "Thinking" animation in character.svg
-            document.getElementById('svg-char').contentDocument.getElementById('think-anim').beginElement();
-
             setTimeout(() => {
-                let take = (count - 1) % 4 || 1;
+                // Misere Play Logic: Aim for positions 1, 5, 9, 13
+                let target = (count - 1) % 4;
+                let take = target === 0 ? 1 : target; 
+                
+                // Ensure we don't take more than exists
+                take = Math.min(take, count);
+                
                 executeMove(take);
-                if (count > 0) startPlayerTurn();
-            }, 1500);
+                
+                if (count > 0) {
+                    startPlayerTurn();
+                } else {
+                    endGame(false); // CPU took the last ball
+                }
+            }, 1000);
         }
 
         function startPlayerTurn() {
             isPlayerTurn = true;
             toggleBtns(true);
             updateStatus("Your Turn!");
+            // Disable buttons if count is low
+            if(count < 3) document.getElementById('btn-3').disabled = true;
+            if(count < 2) document.getElementById('btn-2').disabled = true;
         }
 
         function executeMove(n) {
-            const board = document.getElementById('svg-board').contentDocument;
-            for (let i = 0; i < n && count > 0; i++) {
-                const ball = board.getElementById('ball-' + count);
-                if (ball) ball.style.display = 'none'; // Could be replaced with a SMIL fade
+            const boardDoc = document.getElementById('svg-board').contentDocument;
+            for (let i = 0; i < n; i++) {
+                // Assumes your board.svg has elements with ID "ball-1", "ball-2", etc.
+                const ball = boardDoc.getElementById('ball-' + count);
+                if (ball) ball.style.opacity = '0'; 
                 count--;
             }
             updateHud();
-            if (count <= 0) endGame();
         }
 
         function updateStatus(msg) {
-            document.getElementById('svg-hud').contentDocument.getElementById('status-txt').textContent = msg;
+            // Using a simple fallback if hud.svg text element isn't found
+            try {
+                const hudDoc = document.getElementById('svg-hud').contentDocument;
+                const status = hudDoc.getElementById('status-txt');
+                if(status) status.textContent = msg;
+            } catch(e) { console.log(msg); }
         }
 
         function updateHud() {
-            const bar = document.getElementById('svg-hud').contentDocument.getElementById('bar-grow');
-            bar.setAttribute('to', (count / 15) * 100 + '%');
-            bar.beginElement();
+            try {
+                const hudDoc = document.getElementById('svg-hud').contentDocument;
+                const bar = hudDoc.getElementById('bar-grow');
+                if(bar) {
+                    const progress = (count / 15) * 100;
+                    bar.setAttribute('width', progress + '%');
+                }
+            } catch(e) {}
         }
 
         function toggleBtns(on) {
             document.querySelectorAll('button').forEach(b => b.disabled = !on);
         }
 
-        function endGame() {
+        function endGame(playerTookLast) {
             document.getElementById('ui-controls').style.display = 'none';
-            updateStatus(isPlayerTurn ? "CPU WON!" : "YOU WON!");
+            // In Misere Play, the one who takes the last ball LOSES
+            const result = playerTookLast ? "YOU LOST! (Took last ball)" : "YOU WON! (CPU took last ball)";
+            updateStatus(result);
+            alert(result);
         }
     </script>
 </body>
