@@ -2,16 +2,15 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Mission: Zero - Master 1 Edition</title>
+    <title>Mission: Zero - Fixed Edition</title>
     <style>
-        body { background: #1a1a1a; color: white; font-family: 'Segoe UI', sans-serif; display: flex; flex-direction: column; align-items: center; margin: 0; overflow: hidden; }
-        .viewport { position: relative; width: 800px; height: 600px; margin-top: 20px; background: #2c3e50; border-radius: 15px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        body { background: #1a1a1a; color: white; font-family: 'Segoe UI', sans-serif; display: flex; flex-direction: column; align-items: center; margin: 0; }
+        .viewport { position: relative; width: 800px; height: 600px; margin-top: 20px; background: #2c3e50; border-radius: 15px; overflow: hidden; }
         .layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; pointer-events: none; }
         #svg-menu, #svg-gameover { pointer-events: all; z-index: 200; }
         #ui-controls { position: absolute; bottom: 30px; width: 100%; display: none; justify-content: center; gap: 15px; z-index: 100; }
-        button { padding: 12px 25px; font-size: 18px; cursor: pointer; border-radius: 8px; border: none; background: #3498db; color: white; font-weight: bold; transition: 0.2s; }
-        button:hover:not(:disabled) { background: #2980b9; transform: scale(1.05); }
-        button:disabled { background: #7f8c8d; opacity: 0.5; cursor: not-allowed; }
+        button { padding: 12px 25px; font-size: 18px; cursor: pointer; border-radius: 8px; border: none; background: #3498db; color: white; font-weight: bold; }
+        button:disabled { background: #7f8c8d; opacity: 0.5; }
     </style>
 </head>
 <body>
@@ -32,39 +31,30 @@
     </div>
 
     <script>
-        let totalBalls = 15;
-        let count = 15;
+        // BALLS CONST NUMBER
+        const TOTAL_BALLS = 15; 
+        let count = TOTAL_BALLS;
         let isPlayerTurn = false;
 
         function initGame(choice) {
-            totalBalls = Math.floor(Math.random() * (21 - 9 + 1)) + 9;
-            count = totalBalls;
-
             document.getElementById('svg-menu').style.display = 'none';
             document.getElementById('ui-controls').style.display = 'flex';
             
-            setupBoard();
-            if (choice === 'pc') startCpuTurn();
-            else startPlayerTurn();
-        }
-
-        function setupBoard() {
-            const boardDoc = document.getElementById('svg-board').contentDocument;
-            for (let i = 1; i <= 21; i++) {
-                const ball = boardDoc.getElementById('ball-' + i);
-                if (ball) {
-                    ball.style.display = (i <= count) ? 'block' : 'none';
-                    ball.style.opacity = '1';
-                }
+            if (choice === 'pc') {
+                startCpuTurn();
+            } else {
+                startPlayerTurn();
             }
-            updateHud();
         }
 
         function playMove(n) {
             if (!isPlayerTurn || n > count) return;
             executeMove(n);
-            if (count > 0) startCpuTurn();
-            else endGame(true); 
+            if (count > 0) {
+                startCpuTurn();
+            } else {
+                endGame(true); // Player took the last ball -> YOU LOSE
+            }
         }
 
         function startCpuTurn() {
@@ -77,8 +67,11 @@
                 let take = (target === 0) ? 1 : target; 
                 executeMove(Math.min(take, count));
                 
-                if (count > 0) startPlayerTurn();
-                else endGame(false);
+                if (count > 0) {
+                    startPlayerTurn();
+                } else {
+                    endGame(false); // CPU took the last ball -> YOU WIN
+                }
             }, 1200);
         }
 
@@ -94,7 +87,7 @@
             const boardDoc = document.getElementById('svg-board').contentDocument;
             for (let i = 0; i < n; i++) {
                 const ball = boardDoc.getElementById('ball-' + count);
-                if (ball) ball.style.opacity = '0';
+                if (ball) ball.style.display = 'none';
                 count--;
             }
             updateHud();
@@ -111,7 +104,7 @@
             try {
                 const hudDoc = document.getElementById('svg-hud').contentDocument;
                 const bar = hudDoc.getElementById('bar-grow');
-                if (bar) bar.setAttribute('width', (count / totalBalls) * 100 + '%');
+                if (bar) bar.setAttribute('width', (count / TOTAL_BALLS) * 100 + '%');
             } catch(e) {}
         }
 
@@ -124,11 +117,22 @@
             const goLayer = document.getElementById('svg-gameover');
             const goDoc = goLayer.contentDocument;
             
-            goDoc.getElementById('game-over-title').textContent = playerLost ? "MISSION FAILED" : "MISSION SUCCESS";
-            goDoc.getElementById('game-over-title').setAttribute("fill", playerLost ? "#e74c3c" : "#2ecc71");
-            goDoc.getElementById('game-over-result').textContent = playerLost ? "You took the last ball!" : "The CPU took the last ball!";
+            // Fix Game Over SVG elements
+            const title = goDoc.getElementById('game-over-title');
+            const result = goDoc.getElementById('game-over-result');
+
+            if (playerLost) {
+                title.textContent = "YOU LOSE!";
+                title.setAttribute("fill", "#e74c3c");
+                result.textContent = "You took the last ball.";
+            } else {
+                title.textContent = "YOU WIN!";
+                title.setAttribute("fill", "#2ecc71");
+                result.textContent = "The CPU took the last ball.";
+            }
             
             goLayer.style.display = 'block';
+            // Click anywhere on Game Over to reload
             goLayer.onclick = () => location.reload();
         }
     </script>
